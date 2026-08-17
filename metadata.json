@@ -1,0 +1,6 @@
+{
+  "name": "Colony Connect",
+  "description": "Bilingual community management and grievance redressal app for residents and committee members with complaint tracking, status updates, and community notices.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

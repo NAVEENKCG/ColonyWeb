@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #08424D;
+  --accent-hover: #06333c;
+  --bg-page: #F4F7F6;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Focus ring for accessibility */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--accent);
+}
