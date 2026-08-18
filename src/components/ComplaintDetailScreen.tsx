@@ -349,113 +349,115 @@ export const ComplaintDetailScreen: React.FC<ComplaintDetailScreenProps> = ({
           </form>
         </div>
 
-        {/* Resolution & Feedback Section (Matching Screenshot) */}
-        <div
-          id="feedback-resolution-card"
-          className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 mt-6"
-        >
-          {/* Header */}
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Is this resolved? / <span className="font-semibold text-slate-700">இது சரிசெய்யப்பட்டதா?</span>
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Please confirm if the issue is fixed to your satisfaction.
-            </p>
-          </div>
-
-          {/* Yes / No Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              id="resolution-no-btn"
-              type="button"
-              onClick={() => setFeedbackResolved(false)}
-              className={`py-3 px-4 rounded-2xl border font-bold text-xs flex items-center justify-center gap-1.5 transition ${
-                !feedbackResolved
-                  ? 'bg-rose-50 border-rose-400 text-rose-700 shadow-sm'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <X className="w-4 h-4 text-rose-600 stroke-[2.5]" />
-              <span>No / இல்லை</span>
-            </button>
-
-            <button
-              id="resolution-yes-btn"
-              type="button"
-              onClick={() => setFeedbackResolved(true)}
-              className={`py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow transition ${
-                feedbackResolved
-                  ? 'bg-[#08424D] text-white shadow-teal-900/10'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
-              <span>Yes / ஆம்</span>
-            </button>
-          </div>
-
-          {/* Rating Section */}
-          <div className="pt-2">
-            <label className="block text-xs font-bold text-slate-800 mb-2">
-              Rate the service / <span className="font-medium text-slate-600">சேவையை மதிப்பிடவும்</span>
-            </label>
-
-            {/* 5 Stars */}
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  id={`star-rating-btn-${star}`}
-                  type="button"
-                  onClick={() => setRating(star)}
-                  onMouseEnter={() => setHoverRating(star)}
-                  onMouseLeave={() => setHoverRating(null)}
-                  className="p-1 hover:scale-110 transition-transform"
-                >
-                  <Star
-                    className={`w-7 h-7 ${
-                      (hoverRating ?? rating) >= star
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'fill-transparent text-slate-300'
-                    }`}
-                  />
-                </button>
-              ))}
-              <span className="text-xs font-bold text-slate-600 ml-2">
-                {rating} / 5 Stars
-              </span>
+        {/* Resolution & Feedback Section (Only for residents when resolved) */}
+        {currentUser?.role === 'resident' && complaint.status === 'resolved' && (
+          <div
+            id="feedback-resolution-card"
+            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 mt-6"
+          >
+            {/* Header */}
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Is this resolved? / <span className="font-semibold text-slate-700">இது சரிசெய்யப்பட்டதா?</span>
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Please confirm if the issue is fixed to your satisfaction.
+              </p>
             </div>
-          </div>
 
-          {/* Feedback Form */}
-          <form onSubmit={handleFeedbackSubmit} className="space-y-3 pt-1">
-            <textarea
-              id="feedback-comments-input"
-              rows={3}
-              value={feedbackComment}
-              onChange={(e) => setFeedbackComment(e.target.value)}
-              placeholder="Add comments (optional) / கருத்துகளைச் சேர்க்கவும்..."
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B4D58]/30 focus:border-[#0B4D58]"
-            ></textarea>
+            {/* Yes / No Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                id="resolution-no-btn"
+                type="button"
+                onClick={() => setFeedbackResolved(false)}
+                className={`py-3 px-4 rounded-2xl border font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                  !feedbackResolved
+                    ? 'bg-rose-50 border-rose-400 text-rose-700 shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <X className="w-4 h-4 text-rose-600 stroke-[2.5]" />
+                <span>No / இல்லை</span>
+              </button>
 
-            <button
-              id="submit-feedback-btn"
-              type="submit"
-              className="w-full bg-[#08424D] hover:bg-[#06333c] active:scale-[0.99] text-white py-3.5 px-4 rounded-2xl shadow font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Check className="w-4 h-4" />
-              <span>Submit Feedback / கருத்தை சமர்ப்பிக்கவும்</span>
-            </button>
-          </form>
-
-          {feedbackSubmitted && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>Feedback recorded! Thank you for helping us improve our community.</span>
+              <button
+                id="resolution-yes-btn"
+                type="button"
+                onClick={() => setFeedbackResolved(true)}
+                className={`py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow transition ${
+                  feedbackResolved
+                    ? 'bg-[#08424D] text-white shadow-teal-900/10'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
+                <span>Yes / ஆம்</span>
+              </button>
             </div>
-          )}
-        </div>
+
+            {/* Rating Section */}
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-800 mb-2">
+                Rate the service / <span className="font-medium text-slate-600">சேவையை மதிப்பிடவும்</span>
+              </label>
+
+              {/* 5 Stars */}
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    id={`star-rating-btn-${star}`}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(null)}
+                    className="p-1 hover:scale-110 transition-transform"
+                  >
+                    <Star
+                      className={`w-7 h-7 ${
+                        (hoverRating ?? rating) >= star
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'fill-transparent text-slate-300'
+                      }`}
+                    />
+                  </button>
+                ))}
+                <span className="text-xs font-bold text-slate-600 ml-2">
+                  {rating} / 5 Stars
+                </span>
+              </div>
+            </div>
+
+            {/* Feedback Form */}
+            <form onSubmit={handleFeedbackSubmit} className="space-y-3 pt-1">
+              <textarea
+                id="feedback-comments-input"
+                rows={3}
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder="Add comments (optional) / கருத்துகளைச் சேர்க்கவும்..."
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B4D58]/30 focus:border-[#0B4D58]"
+              ></textarea>
+
+              <button
+                id="submit-feedback-btn"
+                type="submit"
+                className="w-full bg-[#08424D] hover:bg-[#06333c] active:scale-[0.99] text-white py-3.5 px-4 rounded-2xl shadow font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>Submit Feedback / கருத்தை சமர்ப்பிக்கவும்</span>
+              </button>
+            </form>
+
+            {feedbackSubmitted && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>Feedback recorded! Thank you for helping us improve our community.</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

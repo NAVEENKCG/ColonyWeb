@@ -29,14 +29,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   }, [otpSent]);
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneNumber || phoneNumber.length < 10) {
       setErrorMsg('Please enter a valid 10-digit mobile number.');
       return;
     }
 
-    const user = lookupUserByPhone(phoneNumber);
+    const user = await lookupUserByPhone(phoneNumber);
     if (!user) {
       setErrorMsg('No account found with this number. Please register first.');
       return;

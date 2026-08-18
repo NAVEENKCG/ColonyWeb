@@ -7,10 +7,6 @@ import {
   ActiveTab,
   AppView,
 } from './types';
-import {
-  INITIAL_COMPLAINTS,
-  INITIAL_NOTICES,
-} from './data/initialData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { RegisterScreen } from './components/RegisterScreen';
@@ -24,35 +20,11 @@ import { NoticesScreen } from './components/NoticesScreen';
 import { BottomNavBar } from './components/BottomNavBar';
 import { CheckCircle2 } from 'lucide-react';
 
-const STORAGE_KEY_COMPLAINTS = 'colony_connect_complaints_v1';
-const STORAGE_KEY_NOTICES = 'colony_connect_notices_v1';
-
 function AppContent() {
-  const { currentUser, register, login, logout, updateUser, registeredUsers } = useAuth();
+  const { currentUser, register, login, lookupUser, logout, updateUser } = useAuth();
 
-  const [complaints, setComplaints] = useState<Complaint[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_COMPLAINTS);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_COMPLAINTS;
-  });
-
-  const [notices, setNotices] = useState<Notice[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_NOTICES);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_NOTICES;
-  });
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('complaints');
   const [activeView, setActiveView] = useState<AppView>(() =>
@@ -61,14 +33,20 @@ function AppContent() {
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Sync complaints to local storage
+  // Fetch data from backend API
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_COMPLAINTS, JSON.stringify(complaints));
-  }, [complaints]);
+    if (currentUser) {
+      fetch('/api/complaints')
+        .then(res => res.json())
+        .then(data => setComplaints(data))
+        .catch(e => console.error(e));
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(notices));
-  }, [notices]);
+      fetch('/api/notices')
+        .then(res => res.json())
+        .then(data => setNotices(data))
+        .catch(e => console.error(e));
+    }
+  }, [currentUser]);
 
   // Adjust default screen when switching tabs
   const handleSelectTab = (tab: ActiveTab) => {
@@ -97,6 +75,7 @@ function AppContent() {
   };
 
   const handleLoginSuccess = (user: User) => {
+    login(user); // Actually log the user in context
     setActiveTab('complaints');
     setActiveView(user.role === 'committee' ? 'committee_dashboard' : 'resident_home');
     showToast(`Welcome back, ${user.name}!`);
@@ -117,11 +96,7 @@ function AppContent() {
     showToast(`Switched to ${newRole === 'committee' ? 'Committee Management' : 'Resident'} view`);
   };
 
-  const lookupUserByPhone = (phone: string): User | null => {
-    return registeredUsers.find((u) => u.phone === phone) || null;
-  };
-
-  const handleCreateComplaint = (
+  const handleCreateComplaint = async (
     newComplaintData: Omit<Complaint, 'id' | 'customId' | 'reportedAt' | 'timeline'>
   ) => {
     const idNum = Math.floor(1000 + Math.random() * 9000);
@@ -148,25 +123,55 @@ function AppContent() {
       ],
     };
 
-    setComplaints([newComplaint, ...complaints]);
-    setSelectedComplaint(newComplaint);
-    setActiveView('complaint_detail');
-    showToast('Complaint registered successfully! (புகார் பதிவு செய்யப்பட்டது)');
+    try {
+      await fetch('/api/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newComplaint)
+      });
+      setComplaints([newComplaint, ...complaints]);
+      setSelectedComplaint(newComplaint);
+      setActiveView('complaint_detail');
+      showToast('Complaint registered successfully! (புகார் பதிவு செய்யப்பட்டது)');
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to register complaint.');
+    }
   };
 
-  const handleUpdateComplaint = (updatedComplaint: Complaint) => {
-    setComplaints(complaints.map((c) => (c.id === updatedComplaint.id ? updatedComplaint : c)));
-    setSelectedComplaint(updatedComplaint);
-    showToast('Complaint updated successfully.');
+  const handleUpdateComplaint = async (updatedComplaint: Complaint) => {
+    try {
+      await fetch(`/api/complaints/${updatedComplaint.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedComplaint)
+      });
+      setComplaints(complaints.map((c) => (c.id === updatedComplaint.id ? updatedComplaint : c)));
+      setSelectedComplaint(updatedComplaint);
+      showToast('Complaint updated successfully.');
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to update complaint.');
+    }
   };
 
-  const handleAddNotice = (newNoticeData: Omit<Notice, 'id'>) => {
+  const handleAddNotice = async (newNoticeData: Omit<Notice, 'id'>) => {
     const newNotice: Notice = {
       ...newNoticeData,
       id: 'not-' + Date.now(),
     };
-    setNotices([newNotice, ...notices]);
-    showToast('Notice broadcasted to all residents! (அறிவிப்பு வெளியிடப்பட்டது)');
+    try {
+      await fetch('/api/notices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newNotice)
+      });
+      setNotices([newNotice, ...notices]);
+      showToast('Notice broadcasted to all residents! (அறிவிப்பு வெளியிடப்பட்டது)');
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to broadcast notice.');
+    }
   };
 
   const handleSelectComplaintDetail = (complaint: Complaint) => {
@@ -200,7 +205,7 @@ function AppContent() {
         onLoginSuccess={handleLoginSuccess}
         onNavigateToRegister={() => setActiveView('register')}
         onBack={() => setActiveView('welcome')}
-        lookupUserByPhone={lookupUserByPhone}
+        lookupUserByPhone={lookupUser}
       />
     );
   }

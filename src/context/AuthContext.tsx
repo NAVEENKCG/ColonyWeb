@@ -1,16 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, UserRole } from '../types';
 
-const STORAGE_KEY_USERS = 'colony_connect_registered_users_v1';
 const STORAGE_KEY_CURRENT = 'colony_connect_current_user_v1';
 
 interface AuthContextType {
   currentUser: User | null;
-  registeredUsers: User[];
-  register: (user: User) => void;
-  login: (phone: string) => User | null;
+  register: (user: User) => Promise<void>;
+  login: (user: User) => void;
+  lookupUser: (phone: string) => Promise<User | null>;
   logout: () => void;
-  updateUser: (user: User) => void;
+  updateUser: (user: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -36,18 +35,9 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [registeredUsers, setRegisteredUsers] = useState<User[]>(() =>
-    loadFromStorage<User[]>(STORAGE_KEY_USERS, [])
-  );
-
   const [currentUser, setCurrentUser] = useState<User | null>(() =>
     loadFromStorage<User | null>(STORAGE_KEY_CURRENT, null)
   );
-
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(registeredUsers));
-  }, [registeredUsers]);
 
   useEffect(() => {
     if (currentUser) {
@@ -57,46 +47,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [currentUser]);
 
-  const register = useCallback((user: User) => {
-    setRegisteredUsers((prev) => {
-      // Replace if phone already exists, otherwise add
-      const exists = prev.findIndex((u) => u.phone === user.phone);
-      if (exists >= 0) {
-        const updated = [...prev];
-        updated[exists] = user;
-        return updated;
-      }
-      return [...prev, user];
+  const register = useCallback(async (user: User) => {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
     });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to register');
+    }
     setCurrentUser(user);
   }, []);
 
-  const login = useCallback(
-    (phone: string): User | null => {
-      const found = registeredUsers.find((u) => u.phone === phone);
-      if (found) {
-        setCurrentUser(found);
-        return found;
+  const lookupUser = useCallback(async (phone: string): Promise<User | null> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      if (res.ok) {
+        return await res.json();
       }
       return null;
-    },
-    [registeredUsers]
-  );
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }, []);
+
+  const login = useCallback((user: User) => {
+    setCurrentUser(user);
+  }, []);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
   }, []);
 
-  const updateUser = useCallback((user: User) => {
-    setCurrentUser(user);
-    setRegisteredUsers((prev) =>
-      prev.map((u) => (u.phone === user.phone ? user : u))
-    );
+  const updateUser = useCallback(async (user: User) => {
+    const res = await fetch(`/api/users/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: user.role })
+    });
+    if (res.ok) {
+      const updatedUser = await res.json();
+      setCurrentUser(updatedUser);
+    }
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ currentUser, registeredUsers, register, login, logout, updateUser }}
+      value={{ currentUser, register, login, lookupUser, logout, updateUser }}
     >
       {children}
     </AuthContext.Provider>
