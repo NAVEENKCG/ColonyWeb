@@ -67,11 +67,16 @@ function AppContent() {
     }, 3500);
   };
 
-  const handleRegisterSuccess = (user: User) => {
-    register(user);
-    setActiveTab('complaints');
-    setActiveView(user.role === 'committee' ? 'committee_dashboard' : 'resident_home');
-    showToast(`Welcome, ${user.name}! Account created successfully.`);
+  const handleRegisterSuccess = async (user: User) => {
+    try {
+      await register(user);
+      setActiveTab('complaints');
+      setActiveView(user.role === 'committee' ? 'committee_dashboard' : 'resident_home');
+      showToast(`Welcome, ${user.name}! Account created successfully.`);
+    } catch (error: any) {
+      console.error(error);
+      showToast(error.message || 'Failed to register');
+    }
   };
 
   const handleLoginSuccess = (user: User) => {

@@ -45,13 +45,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           id="profile-avatar-button"
           onClick={() => setShowProfileMenu(!showProfileMenu)}
           aria-label="User Profile & Settings"
-          className="w-10 h-10 rounded-full bg-[#08424D] text-white flex items-center justify-center shadow hover:bg-[#06333c] transition-transform active:scale-95"
+          className="w-10 h-10 rounded-full bg-[#08424D] text-white flex items-center justify-center shadow hover:bg-[#06333c] transition-transform active:scale-95 font-bold text-lg"
         >
-          {currentUser?.role === 'committee' ? (
-            <ShieldCheck className="w-5 h-5 text-emerald-300" />
-          ) : (
-            <User className="w-5 h-5" />
-          )}
+          {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'R'}
         </button>
 
         {showProfileMenu && (
@@ -72,44 +68,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               </div>
             </div>
 
-            {/* Role Switcher */}
-            <div className="my-3">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Active View / Role
-              </span>
-              <div className="grid grid-cols-2 gap-1.5 mt-1.5 p-1 bg-slate-100 rounded-xl">
-                <button
-                  id="switch-to-resident-role"
-                  onClick={() => {
-                    onSwitchRole('resident');
-                    setShowProfileMenu(false);
-                  }}
-                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition ${
-                    currentUser?.role === 'resident'
-                      ? 'bg-white text-[#0B4D58] shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Resident
-                </button>
-                <button
-                  id="switch-to-committee-role"
-                  onClick={() => {
-                    onSwitchRole('committee');
-                    setShowProfileMenu(false);
-                  }}
-                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition ${
-                    currentUser?.role === 'committee'
-                      ? 'bg-white text-[#0B4D58] shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  Committee
-                </button>
-              </div>
-            </div>
+
 
             {/* Flat Link Info */}
             <div className="my-2 p-2.5 bg-teal-50/70 border border-teal-100 rounded-xl">
