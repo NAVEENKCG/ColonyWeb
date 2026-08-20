@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import db, { initDb } from './db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
@@ -225,6 +230,16 @@ app.post('/api/notices', (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../dist')));
+
+  // Catch-all route to serve the React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
