@@ -11,9 +11,10 @@ import {
   Building2,
 } from 'lucide-react';
 import { User as UserType, UserRole } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface RegisterScreenProps {
-  onRegisterSuccess: (user: UserType) => void;
+  onRegisterSuccess: (user: UserType, otp: string) => void;
   onNavigateToLogin: () => void;
   onBack: () => void;
 }
@@ -32,6 +33,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   onNavigateToLogin,
   onBack,
 }) => {
+  const { sendOtp } = useAuth();
+
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -40,6 +43,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   const [selectedRole, setSelectedRole] = useState<UserRole>('resident');
   const [otpCode, setOtpCode] = useState(['', '', '', '']);
   const [errorMsg, setErrorMsg] = useState('');
+  const [demoCode, setDemoCode] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -78,8 +83,20 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     goToStep(3);
   };
 
-  const handleStep3Next = () => {
-    goToStep(4);
+  const handleStep3Next = async () => {
+    // Request server-generated OTP before moving to verification step
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      const result = await sendOtp(phone, 'register');
+      setDemoCode(result.demoCode || null);
+      goToStep(4);
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -98,28 +115,34 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     }
   };
 
-  const handleVerifyAndRegister = (e: React.FormEvent) => {
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     const enteredOtp = otpCode.join('');
     if (enteredOtp.length < 4) {
       setErrorMsg('Please enter the 4-digit verification code.');
       return;
     }
-    if (enteredOtp !== '1234') {
-      setErrorMsg('Invalid OTP. Demo code is 1234.');
-      return;
+
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      const newUser: UserType = {
+        id: 'usr-' + Date.now(),
+        name: name.trim(),
+        phone: phone,
+        flatNumber: flatNumber.trim(),
+        block: block.trim(),
+        role: selectedRole,
+      };
+
+      // Server validates OTP and creates user + session
+      await onRegisterSuccess(newUser, enteredOtp);
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Invalid or expired OTP.');
+    } finally {
+      setIsLoading(false);
     }
-
-    const newUser: UserType = {
-      id: 'usr-' + Date.now(),
-      name: name.trim(),
-      phone: phone,
-      flatNumber: flatNumber.trim(),
-      block: block.trim(),
-      role: selectedRole,
-    };
-
-    onRegisterSuccess(newUser);
   };
 
   const renderStepIndicator = () => (
@@ -366,13 +389,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                   </button>
                 </div>
 
+                {errorMsg && <p className="text-xs font-semibold text-rose-600 mt-2">{errorMsg}</p>}
+
                 <button
                   id="reg-step3-next"
                   onClick={handleStep3Next}
-                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99] mt-1"
+                  disabled={isLoading}
+                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99] mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Continue as {selectedRole === 'committee' ? 'Committee' : 'Resident'}
-                  <ArrowRight className="w-4 h-4" />
+                  {isLoading ? 'Sending OTP...' : `Continue as ${selectedRole === 'committee' ? 'Committee' : 'Resident'}`}
+                  {!isLoading && <ArrowRight className="w-4 h-4" />}
                 </button>
               </div>
             )}
@@ -388,7 +414,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                 <p className="text-xs text-slate-500 leading-relaxed">
                   We've sent a 4-digit code to <strong className="text-slate-800">+91 {phone}</strong>
                   <br />
-                  <span className="text-slate-400">(Demo code: 1234)</span>
+                  {demoCode && <span className="text-slate-400">(Demo code: {demoCode})</span>}
                 </p>
 
                 <div className="flex justify-between gap-2.5 my-3">
@@ -413,10 +439,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                 <button
                   id="reg-verify-button"
                   type="submit"
-                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                  disabled={isLoading}
+                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  Create Account & Continue
+                  {isLoading ? 'Creating Account...' : 'Create Account & Continue'}
                 </button>
 
                 <button

@@ -13,7 +13,15 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const dbPath = path.join(dataDir, 'colony.db');
-const db = new Database(dbPath, { verbose: console.log });
+
+// Disable verbose SQL logging in production to prevent leaking query details
+const isProduction = process.env.NODE_ENV === 'production';
+const db = new Database(dbPath, {
+  verbose: isProduction ? null : console.log,
+});
+
+// Enable WAL mode for better concurrent access safety
+db.pragma('journal_mode = WAL');
 
 // Initialize database schema
 export const initDb = () => {
@@ -26,6 +34,30 @@ export const initDb = () => {
       flatNumber TEXT NOT NULL,
       block TEXT NOT NULL,
       role TEXT NOT NULL
+    )
+  `);
+
+  // Sessions table — server-side auth tokens with expiry
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      expiresAt TEXT NOT NULL,
+      FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+    )
+  `);
+
+  // OTP table — server-side OTP storage with expiry
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS otps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone TEXT NOT NULL,
+      code TEXT NOT NULL,
+      purpose TEXT NOT NULL DEFAULT 'login',
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      expiresAt TEXT NOT NULL,
+      used INTEGER NOT NULL DEFAULT 0
     )
   `);
 
@@ -80,6 +112,10 @@ export const initDb = () => {
       isImportant INTEGER DEFAULT 0
     )
   `);
+
+  // Clean up expired sessions and OTPs on startup
+  db.prepare("DELETE FROM sessions WHERE expiresAt < datetime('now')").run();
+  db.prepare("DELETE FROM otps WHERE expiresAt < datetime('now')").run();
 };
 
 export default db;

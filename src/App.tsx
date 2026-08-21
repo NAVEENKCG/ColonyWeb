@@ -21,7 +21,7 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { CheckCircle2 } from 'lucide-react';
 
 function AppContent() {
-  const { currentUser, register, login, lookupUser, logout, updateUser } = useAuth();
+  const { currentUser, register, login, lookupUser, sendOtp, logout, updateUser, secureFetch } = useAuth();
 
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -33,20 +33,20 @@ function AppContent() {
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Fetch data from backend API
+  // Fetch data from backend API using secureFetch
   useEffect(() => {
     if (currentUser) {
-      fetch('/api/complaints')
+      secureFetch('/api/complaints')
         .then(res => res.json())
         .then(data => setComplaints(data))
         .catch(e => console.error(e));
 
-      fetch('/api/notices')
+      secureFetch('/api/notices')
         .then(res => res.json())
         .then(data => setNotices(data))
         .catch(e => console.error(e));
     }
-  }, [currentUser]);
+  }, [currentUser, secureFetch]);
 
   // Adjust default screen when switching tabs
   const handleSelectTab = (tab: ActiveTab) => {
@@ -67,9 +67,9 @@ function AppContent() {
     }, 3500);
   };
 
-  const handleRegisterSuccess = async (user: User) => {
+  const handleRegisterSuccess = async (user: User, otp: string) => {
     try {
-      await register(user);
+      await register(user, otp);
       setActiveTab('complaints');
       setActiveView(user.role === 'committee' ? 'committee_dashboard' : 'resident_home');
       showToast(`Welcome, ${user.name}! Account created successfully.`);
@@ -80,7 +80,6 @@ function AppContent() {
   };
 
   const handleLoginSuccess = (user: User) => {
-    login(user); // Actually log the user in context
     setActiveTab('complaints');
     setActiveView(user.role === 'committee' ? 'committee_dashboard' : 'resident_home');
     showToast(`Welcome back, ${user.name}!`);
@@ -129,9 +128,8 @@ function AppContent() {
     };
 
     try {
-      await fetch('/api/complaints', {
+      await secureFetch('/api/complaints', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newComplaint)
       });
       setComplaints([newComplaint, ...complaints]);
@@ -146,9 +144,8 @@ function AppContent() {
 
   const handleUpdateComplaint = async (updatedComplaint: Complaint) => {
     try {
-      await fetch(`/api/complaints/${updatedComplaint.id}`, {
+      await secureFetch(`/api/complaints/${updatedComplaint.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedComplaint)
       });
       setComplaints(complaints.map((c) => (c.id === updatedComplaint.id ? updatedComplaint : c)));
@@ -166,9 +163,8 @@ function AppContent() {
       id: 'not-' + Date.now(),
     };
     try {
-      await fetch('/api/notices', {
+      await secureFetch('/api/notices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newNotice)
       });
       setNotices([newNotice, ...notices]);
@@ -210,7 +206,6 @@ function AppContent() {
         onLoginSuccess={handleLoginSuccess}
         onNavigateToRegister={() => setActiveView('register')}
         onBack={() => setActiveView('welcome')}
-        lookupUserByPhone={lookupUser}
       />
     );
   }

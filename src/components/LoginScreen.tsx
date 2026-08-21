@@ -1,25 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Building2, ArrowLeft, ArrowRight, KeyRound, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
 import { User } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: User) => void;
   onNavigateToRegister: () => void;
   onBack: () => void;
-  lookupUserByPhone: (phone: string) => User | null;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onNavigateToRegister,
   onBack,
-  lookupUserByPhone,
 }) => {
+  const { lookupUser, sendOtp, login } = useAuth();
+
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState(['', '', '', '']);
   const [errorMsg, setErrorMsg] = useState('');
   const [foundUser, setFoundUser] = useState<User | null>(null);
+  const [demoCode, setDemoCode] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -36,15 +39,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       return;
     }
 
-    const user = await lookupUserByPhone(phoneNumber);
-    if (!user) {
-      setErrorMsg('No account found with this number. Please register first.');
-      return;
-    }
-
-    setFoundUser(user);
+    setIsLoading(true);
     setErrorMsg('');
-    setOtpSent(true);
+
+    try {
+      // Lookup user first
+      const user = await lookupUser(phoneNumber);
+      if (!user) {
+        setErrorMsg('No account found with this number. Please register first.');
+        setIsLoading(false);
+        return;
+      }
+
+      setFoundUser(user);
+
+      // Request server-generated OTP
+      const result = await sendOtp(phoneNumber, 'login');
+      setDemoCode(result.demoCode || null);
+      setOtpSent(true);
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -63,20 +80,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const enteredOtp = otpCode.join('');
     if (enteredOtp.length < 4) {
       setErrorMsg('Please enter the 4-digit verification code.');
       return;
     }
-    if (enteredOtp !== '1234') {
-      setErrorMsg('Invalid OTP. Demo code is 1234.');
-      return;
-    }
 
-    if (foundUser) {
-      onLoginSuccess(foundUser);
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      // Server validates the OTP and returns session token
+      const user = await login(phoneNumber, enteredOtp);
+      onLoginSuccess(user);
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Invalid or expired OTP.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -166,9 +188,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 <button
                   id="login-send-otp-button"
                   type="submit"
-                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex flex-col items-center justify-center gap-0.5 transition-all active:scale-[0.99]"
+                  disabled={isLoading}
+                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex flex-col items-center justify-center gap-0.5 transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <span>Send OTP</span>
+                  <span>{isLoading ? 'Sending...' : 'Send OTP'}</span>
                   <span className="text-[10px] text-teal-100 font-medium">ஓடிபி அனுப்புக</span>
                 </button>
               </form>
@@ -202,6 +225,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                         setOtpSent(false);
                         setOtpCode(['', '', '', '']);
                         setFoundUser(null);
+                        setDemoCode(null);
                         setErrorMsg('');
                       }}
                       className="text-xs text-[#08424D] font-bold underline"
@@ -211,7 +235,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   </div>
                   <p className="text-xs text-slate-500 mb-3">
                     Code sent to +91 {phoneNumber}{' '}
-                    <span className="text-slate-400">(Demo: 1234)</span>
+                    {demoCode && <span className="text-slate-400">(Demo: {demoCode})</span>}
                   </p>
 
                   <div className="flex justify-between gap-2.5 my-2">
@@ -237,10 +261,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 <button
                   id="login-verify-button"
                   type="submit"
-                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                  disabled={isLoading}
+                  className="w-full bg-[#08424D] hover:bg-[#06333c] text-white py-3.5 rounded-2xl shadow font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Sign In / உள்நுழைக
-                  <ArrowRight className="w-4 h-4" />
+                  {isLoading ? 'Verifying...' : 'Sign In / உள்நுழைக'}
+                  {!isLoading && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
             )}
